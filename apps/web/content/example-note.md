@@ -1,8 +1,8 @@
 ---
-title: "Welcome to Obsidian Comments"
 publish: true
 visibility: public
 comments: true
+editing: false
 ---
 
 # Welcome to Obsidian Comments

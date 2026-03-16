@@ -39,7 +39,6 @@ Any Markdown file in the configured vault directory can be published by adding f
 
 ```md
 ---
-title: Example Note
 publish: true
 visibility: public
 comments: true
@@ -48,13 +47,16 @@ comments: true
 
 Supported frontmatter fields:
 
-- `title`: display name in the web UI
 - `publish`: if `true`, include the note in the published list
-- `visibility`: `public` or `password_protected`
+- `visibility`: `public` or `password`
 - `comments`: if `false`, disables comments for that note
-- `slug`: optional custom URL slug
 - `password`: SHA-256 hash used for protected notes
-- `noteId`: optional stable note identity override
+- `editing`: if `true`, marks the note as editable; defaults to `false`
+
+Derived automatically from the file system:
+
+- `title`: the filename without `.md`
+- `slug`: the relative vault path without `.md`, lowercased, with spaces converted to `-`
 
 ## Storage Model
 
@@ -137,8 +139,8 @@ Backend:
 
 Example files:
 
-- [apps/api/.env.example](/Users/greg/WIP/obsidian-comments/app/apps/api/.env.example)
-- [apps/web/.env.example](/Users/greg/WIP/obsidian-comments/app/apps/web/.env.example)
+- `apps/api/.env.example`
+- `apps/web/.env.example`
 
 ## Docker Setup
 
@@ -167,7 +169,7 @@ That is only for local demo use.
 
 ### Point Docker At A Real Vault
 
-Replace the example bind mount in [docker-compose.yml](/Users/greg/WIP/obsidian-comments/app/docker-compose.yml) with a real path on the host machine:
+Replace the example bind mount in `docker-compose.yml` with a real path on the host machine:
 
 ```yaml
 services:

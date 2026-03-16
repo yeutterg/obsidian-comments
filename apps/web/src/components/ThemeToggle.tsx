@@ -1,67 +1,98 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { MonitorIcon, MoonIcon, SunIcon } from "./Icons";
 
 type Theme = "system" | "light" | "dark";
+type ThemeToggleVariant = "icon" | "menu";
 
-function getStoredTheme(): Theme {
+const ORDER: Theme[] = ["system", "light", "dark"];
+const THEME_EVENT = "obsidian-comments-theme-change";
+
+function applyTheme(theme: Theme) {
+  const root = document.documentElement;
+  if (theme === "dark") {
+    root.classList.add("dark");
+    return;
+  }
+  if (theme === "light") {
+    root.classList.remove("dark");
+    return;
+  }
+
+  const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  root.classList.toggle("dark", prefersDark);
+}
+
+function readStoredTheme(): Theme {
   if (typeof window === "undefined") {
     return "system";
   }
 
   const stored = localStorage.getItem("theme");
-  return stored === "light" || stored === "dark" || stored === "system"
-    ? stored
-    : "system";
+  return stored === "light" || stored === "dark" || stored === "system" ? stored : "system";
 }
 
-export default function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
+function subscribeToThemeChange(onStoreChange: () => void) {
+  if (typeof window === "undefined") {
+    return () => undefined;
+  }
 
-  useEffect(() => {
-    const root = document.documentElement;
-    if (theme === "dark") {
-      root.classList.add("dark");
-    } else if (theme === "light") {
-      root.classList.remove("dark");
-    } else {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      root.classList.toggle("dark", prefersDark);
+  const handleStorage = (event: StorageEvent) => {
+    if (event.key && event.key !== "theme") {
+      return;
     }
-    localStorage.setItem("theme", theme);
+    onStoreChange();
+  };
+  const handleThemeEvent = () => onStoreChange();
+
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener(THEME_EVENT, handleThemeEvent);
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener(THEME_EVENT, handleThemeEvent);
+  };
+}
+
+export default function ThemeToggle({
+  variant = "icon",
+}: {
+  variant?: ThemeToggleVariant;
+}) {
+  const theme = useSyncExternalStore<Theme>(subscribeToThemeChange, readStoredTheme, (): Theme => "system");
+
+  useEffect(() => {
+    applyTheme(theme);
   }, [theme]);
 
   useEffect(() => {
-    if (theme !== "system") return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e: MediaQueryListEvent) => {
-      document.documentElement.classList.toggle("dark", e.matches);
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    if (theme !== "system") {
+      return;
+    }
+
+    const media = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleChange = () => applyTheme("system");
+    media.addEventListener("change", handleChange);
+    return () => media.removeEventListener("change", handleChange);
   }, [theme]);
 
-  const options: { value: Theme; label: string }[] = [
-    { value: "system", label: "Auto" },
-    { value: "light", label: "Light" },
-    { value: "dark", label: "Dark" },
-  ];
+  const nextTheme = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length];
+  const Icon = theme === "dark" ? MoonIcon : theme === "light" ? SunIcon : MonitorIcon;
+  const themeLabel = theme.charAt(0).toUpperCase() + theme.slice(1);
 
   return (
-    <div className="flex rounded-full bg-secondary p-1 gap-1">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          onClick={() => setTheme(opt.value)}
-          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-            theme === opt.value
-              ? "bg-background text-foreground shadow-sm"
-              : "text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
-    </div>
+    <button
+      type="button"
+      className={variant === "menu" ? "mobile-action-menu-item" : "icon-button"}
+      onClick={() => {
+        localStorage.setItem("theme", nextTheme);
+        window.dispatchEvent(new Event(THEME_EVENT));
+      }}
+      aria-label={`Theme: ${theme}. Switch to ${nextTheme}.`}
+      title={`Theme: ${theme}`}
+    >
+      <Icon width={16} height={16} />
+      {variant === "menu" ? <span>Theme: {themeLabel}</span> : null}
+    </button>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getClientApiBaseUrl } from "@/lib/api-base";
+import { LockIcon, MailIcon } from "./Icons";
 
 export default function LoginForm({ slug, onSuccess }: { slug: string; onSuccess: () => void | Promise<void> }) {
   const [email, setEmail] = useState("");
@@ -9,8 +10,8 @@ export default function LoginForm({ slug, onSuccess }: { slug: string; onSuccess
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
     setLoading(true);
     setError("");
 
@@ -36,52 +37,49 @@ export default function LoginForm({ slug, onSuccess }: { slug: string; onSuccess
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="w-full max-w-sm p-8 bg-card rounded-2xl border border-border">
-        <h2 className="text-xl font-semibold font-mono mb-1 text-card-foreground">
-          Protected Page
-        </h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          Enter the password to load this note from the backend API.
-        </p>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-card-foreground">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="you@example.com"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-card-foreground">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-
-          {error && (
-            <div className="px-3 py-2 rounded-lg bg-error-bg text-error-fg text-sm">
-              {error}
+    <div className="protected-note-shell">
+      <div className={`protected-note-card ${error ? "error" : ""}`}>
+        <div className="protected-note-lock">
+          <LockIcon width={22} height={22} />
+        </div>
+        <h1>Protected Note</h1>
+        <form className="protected-note-form" onSubmit={handleSubmit}>
+          <label className="protected-note-field">
+            <span>Email</span>
+            <div className="field-shell">
+              <MailIcon width={14} height={14} />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="you@example.com"
+                className="field-input"
+              />
             </div>
-          )}
+          </label>
+          <label className="protected-note-field">
+            <span>Password</span>
+            <div className="field-shell">
+              <LockIcon width={14} height={14} />
+              <input
+                type="password"
+                required
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter password"
+                className="field-input"
+              />
+            </div>
+          </label>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 rounded-lg bg-primary text-primary-foreground font-medium text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {loading ? "Authenticating..." : "Unlock"}
+          {error ? <div className="protected-note-error">{error}</div> : null}
+
+          <button type="submit" className="primary-button protected-note-submit" disabled={loading}>
+            {loading ? "Retrying..." : error ? "Retry" : "Unlock"}
           </button>
         </form>
+        <p className="protected-note-help">Email is used only for comment attribution.</p>
       </div>
     </div>
   );

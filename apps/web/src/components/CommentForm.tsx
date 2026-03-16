@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getClientApiBaseUrl } from "@/lib/api-base";
+import { MailIcon, MessageSquareIcon, XIcon } from "./Icons";
 
 interface Props {
   slug: string;
@@ -9,35 +10,49 @@ interface Props {
   anchorStart: number;
   anchorEnd: number;
   position: { top: number; left: number };
-  onSubmit: () => void;
+  onSubmit: (result: { pendingApproval: boolean }) => void;
   onCancel: () => void;
+  mobile: boolean;
+  adminMode: boolean;
 }
 
-export default function CommentForm({ slug, anchorText, anchorStart, anchorEnd, position, onSubmit, onCancel }: Props) {
-  const [email, setEmail] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("commenter-email") || "";
-    }
-    return "";
-  });
+export default function CommentForm({
+  slug,
+  anchorText,
+  anchorStart,
+  anchorEnd,
+  position,
+  onSubmit,
+  onCancel,
+  mobile,
+  adminMode,
+}: Props) {
+  const [email, setEmail] = useState("");
   const [body, setBody] = useState("");
   const [honeypot, setHoneypot] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!body.trim() || !email.trim()) return;
+  useEffect(() => {
+    setEmail(localStorage.getItem("commenter-email") || "");
+  }, []);
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!body.trim() || !email.trim()) {
+      return;
+    }
 
     setLoading(true);
     setError("");
 
     try {
-      const res = await fetch(`${getClientApiBaseUrl()}/api/notes/${slug}/comments`, {
+      const res = await fetch(`${getClientApiBaseUrl()}${adminMode ? "/api/admin/comments" : "/api/comments"}`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          slug,
           authorEmail: email,
           body,
           anchorText,
@@ -47,79 +62,110 @@ export default function CommentForm({ slug, anchorText, anchorStart, anchorEnd, 
         }),
       });
 
+      const data = await res.json().catch(() => null) as { error?: string; pendingApproval?: boolean } | null;
       if (!res.ok) {
-        const data = await res.json();
-        setError(data.error || "Failed to submit");
+        setError(data?.error || "Failed to submit comment");
         return;
       }
 
       localStorage.setItem("commenter-email", email);
       setBody("");
-      onSubmit();
+      onSubmit({ pendingApproval: Boolean(data?.pendingApproval) });
     } catch {
-      setError("Network error");
+      setError("Unable to reach the backend");
     } finally {
       setLoading(false);
     }
   }
 
-  return (
-    <div
-      className="selection-tooltip fixed w-80 bg-popover border border-border rounded-xl shadow-lg p-4"
-      style={{ top: position.top, left: position.left }}
-    >
-      <div className="text-xs text-primary font-mono mb-3 truncate">
-        &ldquo;{anchorText}&rdquo;
+  const content = (
+    <form className="comment-form" onSubmit={handleSubmit}>
+      <div className="comment-form-header">
+        <div>
+          <p className="comment-form-title">{mobile ? "Add Comment" : "New comment"}</p>
+          <p className="comment-form-anchor">&ldquo;{anchorText}&rdquo;</p>
+        </div>
+        {mobile ? (
+          <button type="button" className="icon-button" onClick={onCancel} aria-label="Close comment form">
+            <XIcon width={16} height={16} />
+          </button>
+        ) : null}
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-        <input
-          type="text"
-          value={honeypot}
-          onChange={(e) => setHoneypot(e.target.value)}
-          className="hidden"
-          tabIndex={-1}
-          autoComplete="off"
-          aria-hidden="true"
-        />
+      <input
+        type="text"
+        value={honeypot}
+        onChange={(event) => setHoneypot(event.target.value)}
+        className="honeypot-field"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+      />
 
-        <input
-          type="email"
-          required
-          placeholder="your@email.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full px-3 py-1.5 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        />
+      <label className="comment-form-field">
+        <span className="comment-form-label">Email</span>
+        <span className="field-shell">
+          <MailIcon width={14} height={14} />
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="you@example.com"
+            className="field-input"
+          />
+        </span>
+      </label>
 
+      <label className="comment-form-field">
+        <span className="comment-form-label">Comment</span>
         <textarea
           required
-          placeholder="Add a comment..."
           value={body}
-          onChange={(e) => setBody(e.target.value)}
-          rows={3}
-          className="w-full px-3 py-1.5 rounded-lg border border-input bg-background text-foreground text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary"
+          onChange={(event) => setBody(event.target.value)}
+          rows={mobile ? 4 : 3}
+          placeholder="Add a comment..."
+          className="comment-textarea"
         />
+      </label>
 
-        {error && <p className="text-xs text-error-fg">{error}</p>}
+      {error ? <p className="comment-form-error">{error}</p> : null}
 
-        <div className="flex gap-2 justify-end">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-secondary transition-colors"
-          >
+      <div className="comment-form-actions">
+        {!mobile ? (
+          <button type="button" className="ghost-button" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-          >
-            {loading ? "Sending..." : "Comment"}
-          </button>
+        ) : null}
+        <button type="submit" className="primary-button" disabled={loading}>
+          <MessageSquareIcon width={14} height={14} />
+          {loading ? "Sending..." : mobile ? "Submit Comment" : "Comment"}
+        </button>
+      </div>
+    </form>
+  );
+
+  if (mobile) {
+    return (
+      <div className="mobile-sheet open">
+        <div className="mobile-sheet-backdrop" onClick={onCancel} />
+        <div className="mobile-sheet-panel">
+          <div className="mobile-sheet-handle" />
+          {content}
         </div>
-      </form>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="floating-comment-panel"
+      style={{
+        top: position.top,
+        left: position.left,
+      }}
+    >
+      {content}
     </div>
   );
 }
