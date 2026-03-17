@@ -442,7 +442,7 @@ textarea {
 }
 
 .vault-tree-shell {
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border);
 }
 
 .vault-section-label {
@@ -476,9 +476,9 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  min-height: 52px;
+  padding: 12px 0;
   padding-right: 12px;
-  border-top: 1px solid var(--border-subtle);
+  border-bottom: 1px solid var(--border-subtle);
   background: transparent;
   text-decoration: none;
   color: inherit;
@@ -507,7 +507,17 @@ textarea {
   white-space: nowrap;
   font-family: var(--font-sans), sans-serif;
   font-size: 14px;
+  font-weight: 400;
   color: var(--text-primary);
+}
+
+.vault-row-note {
+  padding: 11px 0;
+  padding-right: 12px;
+}
+
+.vault-row-folder .vault-row-label {
+  font-weight: 500;
 }
 
 .vault-row-count,
@@ -756,7 +766,7 @@ textarea {
 }
 
 .note-topbar-notice {
-  padding: 10px 56px;
+  padding: 10px 48px;
   border-bottom: 1px solid var(--border-subtle);
   background: rgba(46, 204, 113, 0.12);
   color: var(--success);
@@ -1538,7 +1548,7 @@ mark[data-comment-id].active {
   width: 320px;
   flex-basis: 320px;
   opacity: 1;
-  border-left-color: var(--border-subtle);
+  border-left-color: var(--border);
 }
 
 .comments-panel-header {
@@ -1641,8 +1651,12 @@ mark[data-comment-id].active {
 .comment-body {
   margin: 10px 0 12px;
   font-size: 13px;
-  line-height: 1.5;
-  color: var(--text-secondary);
+  line-height: 1.55;
+  color: #3a3a38;
+}
+
+.dark .comment-body {
+  color: #9d9d9d;
 }
 
 .pending-badge {

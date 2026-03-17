@@ -289,7 +289,7 @@ export default function NoteViewerWrapper({
   }
 
   return (
-    <div className={`note-page ${adminMode ? "note-page-admin" : ""}`}>
+    <div className="note-page">
       <header className="note-topbar">
         <div className="note-topbar-left">
           {isMobile ? (
