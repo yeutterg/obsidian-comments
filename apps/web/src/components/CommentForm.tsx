@@ -82,7 +82,7 @@ export default function CommentForm({
     <form className="comment-form" onSubmit={handleSubmit}>
       <div className="comment-form-header">
         <div>
-          <p className="comment-form-title">{mobile ? "Add Comment" : "New comment"}</p>
+          <p className="comment-form-title">Comment</p>
           <p className="comment-form-anchor">&ldquo;{anchorText}&rdquo;</p>
         </div>
         {mobile ? (
@@ -103,7 +103,6 @@ export default function CommentForm({
       />
 
       <label className="comment-form-field">
-        <span className="comment-form-label">Email</span>
         <span className="field-shell">
           <MailIcon width={14} height={14} />
           <input
@@ -118,7 +117,6 @@ export default function CommentForm({
       </label>
 
       <label className="comment-form-field">
-        <span className="comment-form-label">Comment</span>
         <textarea
           required
           value={body}
@@ -139,7 +137,7 @@ export default function CommentForm({
         ) : null}
         <button type="submit" className="primary-button" disabled={loading}>
           <MessageSquareIcon width={14} height={14} />
-          {loading ? "Sending..." : mobile ? "Submit Comment" : "Comment"}
+          {loading ? "Sending..." : "Comment"}
         </button>
       </div>
     </form>

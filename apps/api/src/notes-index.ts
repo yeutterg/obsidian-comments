@@ -20,12 +20,21 @@ interface CachedNote extends PublishedNote {
   tasks: ParsedTask[];
   absolutePath: string;
   mtimeMs: number;
+  vaultKey: string | null;
+  vaultLabel: string | null;
 }
 
 interface CachedAsset {
   path: string;
   absolutePath: string;
   mtimeMs: number;
+  vaultKey: string | null;
+  vaultLabel: string | null;
+}
+
+interface VaultMount {
+  key: string;
+  label: string;
 }
 
 interface ParsedTask {
@@ -144,6 +153,15 @@ function normalizeSlug(relativePath: string) {
     .join("/");
 }
 
+function getMountedVaultLabel(sourcePath: string, sourceVaultKey: string | null) {
+  if (!sourceVaultKey) {
+    return null;
+  }
+
+  const [segment] = toPosixRelativePath(sourcePath).split("/").filter(Boolean);
+  return segment ?? null;
+}
+
 function hashContent(content: string) {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
@@ -221,6 +239,7 @@ function normalizeFieldValue(
         ? normalizeWikiLinkTarget(
             parsedWikiLink.targetPath,
             options.sourceNote.path,
+            options.sourceNote.vaultKey,
             options.notesBySlug,
             options.notesByBasename,
           )
@@ -388,7 +407,7 @@ function buildAssetsByBasename(assetsByPath: Map<string, CachedAsset>) {
   return assetsByBasename;
 }
 
-function normalizeVaultRelativePath(sourcePath: string, targetPath: string) {
+function normalizeVaultRelativePath(sourcePath: string, targetPath: string, sourceVaultLabel: string | null = null) {
   const normalizedTarget = targetPath.replace(/\\/g, "/").replace(/^\/+/, "");
   if (!normalizedTarget) {
     return null;
@@ -407,6 +426,10 @@ function normalizeVaultRelativePath(sourcePath: string, targetPath: string) {
     return null;
   }
 
+  if (targetPath.startsWith("/") && sourceVaultLabel) {
+    return path.posix.join(sourceVaultLabel, normalized);
+  }
+
   return normalized;
 }
 
@@ -417,6 +440,7 @@ function normalizeAssetLookupKey(relativePath: string) {
 function resolveAssetTarget(
   targetPath: string,
   sourcePath: string,
+  sourceVaultKey: string | null,
   assetsByPath: Map<string, CachedAsset>,
   assetsByBasename: Map<string, CachedAsset[]>,
 ) {
@@ -426,11 +450,21 @@ function resolveAssetTarget(
 
   const normalizedTarget = targetPath.replace(/\\/g, "/").replace(/^\/+/, "");
   const directPath = normalizeAssetLookupKey(normalizedTarget);
-  if (assetsByPath.has(directPath)) {
-    return assetsByPath.get(directPath) ?? null;
+  const directMatch = assetsByPath.get(directPath) ?? null;
+  if (directMatch && (!sourceVaultKey || directMatch.vaultKey === sourceVaultKey)) {
+    return directMatch;
   }
 
-  const relativeCandidate = normalizeVaultRelativePath(sourcePath, targetPath);
+  const sourceVaultLabel = getMountedVaultLabel(sourcePath, sourceVaultKey);
+  if (sourceVaultLabel) {
+    const vaultScopedKey = normalizeAssetLookupKey(path.posix.join(sourceVaultLabel, normalizedTarget));
+    const vaultScopedMatch = assetsByPath.get(vaultScopedKey) ?? null;
+    if (vaultScopedMatch) {
+      return vaultScopedMatch;
+    }
+  }
+
+  const relativeCandidate = normalizeVaultRelativePath(sourcePath, targetPath, sourceVaultLabel);
   if (relativeCandidate) {
     const relativeKey = normalizeAssetLookupKey(relativeCandidate);
     if (assetsByPath.has(relativeKey)) {
@@ -439,14 +473,18 @@ function resolveAssetTarget(
   }
 
   if (normalizedTarget.includes("/")) {
-    const suffixMatches = [...assetsByPath.values()].filter((asset) => asset.path.toLowerCase().endsWith(`/${directPath}`) || asset.path.toLowerCase() === directPath);
+    const suffixMatches = [...assetsByPath.values()].filter((asset) =>
+      (!sourceVaultKey || asset.vaultKey === sourceVaultKey)
+      && (asset.path.toLowerCase().endsWith(`/${directPath}`) || asset.path.toLowerCase() === directPath)
+    );
     if (suffixMatches.length === 1) {
       return suffixMatches[0] ?? null;
     }
   }
 
   const basename = path.posix.basename(normalizedTarget).toLowerCase();
-  const basenameCandidates = assetsByBasename.get(basename) ?? [];
+  const basenameCandidates = (assetsByBasename.get(basename) ?? [])
+    .filter((asset) => !sourceVaultKey || asset.vaultKey === sourceVaultKey);
   if (basenameCandidates.length === 0) {
     return null;
   }
@@ -747,6 +785,7 @@ function commonPathPrefixLength(left: string, right: string) {
 function normalizeWikiLinkTarget(
   targetPath: string,
   sourcePath: string,
+  sourceVaultKey: string | null,
   notesBySlug: Map<string, CachedNote>,
   notesByBasename: Map<string, CachedNote[]>,
 ) {
@@ -762,6 +801,14 @@ function normalizeWikiLinkTarget(
     return directSlug;
   }
 
+  const sourceVaultLabel = getMountedVaultLabel(sourcePath, sourceVaultKey);
+  if (sourceVaultLabel) {
+    const vaultScopedSlug = normalizeSlug(path.posix.join(sourceVaultLabel, withExtension));
+    if (notesBySlug.has(vaultScopedSlug)) {
+      return vaultScopedSlug;
+    }
+  }
+
   const sourceDir = path.posix.dirname(toPosixRelativePath(sourcePath));
   const relativeCandidate = normalizeSlug(path.posix.normalize(path.posix.join(sourceDir === "." ? "" : sourceDir, withExtension)));
   if (notesBySlug.has(relativeCandidate)) {
@@ -769,14 +816,18 @@ function normalizeWikiLinkTarget(
   }
 
   if (normalizedTarget.includes("/")) {
-    const suffixMatches = [...notesBySlug.keys()].filter((slug) => slug === directSlug || slug.endsWith(`/${directSlug}`));
+    const suffixMatches = [...notesBySlug.values()]
+      .filter((note) => !sourceVaultKey || note.vaultKey === sourceVaultKey)
+      .map((note) => note.slug)
+      .filter((slug) => slug === directSlug || slug.endsWith(`/${directSlug}`));
     if (suffixMatches.length === 1) {
       return suffixMatches[0];
     }
   }
 
   const basename = path.posix.basename(normalizedTarget, ".md").toLowerCase();
-  const basenameCandidates = notesByBasename.get(basename) ?? [];
+  const basenameCandidates = (notesByBasename.get(basename) ?? [])
+    .filter((note) => !sourceVaultKey || note.vaultKey === sourceVaultKey);
   if (basenameCandidates.length === 0) {
     return null;
   }
@@ -839,14 +890,16 @@ function extractMarkdownDestination(rawTarget: string) {
   return withTitleMatch?.[1] ?? trimmed;
 }
 
-function normalizeMarkdownLinkTarget(target: string, sourcePath: string) {
+function normalizeMarkdownLinkTarget(target: string, sourcePath: string, sourceVaultKey: string | null) {
   const cleaned = extractMarkdownDestination(target)?.split("#")[0]?.split("?")[0]?.trim();
   if (!cleaned || /^https?:\/\//i.test(cleaned) || cleaned.startsWith("mailto:")) {
     return null;
   }
 
   if (cleaned.startsWith("/")) {
-    return normalizeSlug(cleaned.slice(1).endsWith(".md") ? cleaned.slice(1) : `${cleaned.slice(1)}.md`);
+    const sourceVaultLabel = getMountedVaultLabel(sourcePath, sourceVaultKey);
+    const targetPath = cleaned.slice(1).endsWith(".md") ? cleaned.slice(1) : `${cleaned.slice(1)}.md`;
+    return normalizeSlug(sourceVaultLabel ? path.posix.join(sourceVaultLabel, targetPath) : targetPath);
   }
 
   const sourceDir = path.posix.dirname(sourcePath.split(path.sep).join("/"));
@@ -864,7 +917,7 @@ function extractReferences(
   for (const match of note.content.matchAll(/\[\[([^[\]]+)\]\]/g)) {
     const parsed = parseWikiLink(match[1] ?? "");
     const normalized = parsed
-      ? normalizeWikiLinkTarget(parsed.targetPath, note.path, notesBySlug, notesByBasename)
+      ? normalizeWikiLinkTarget(parsed.targetPath, note.path, note.vaultKey, notesBySlug, notesByBasename)
       : null;
     if (normalized) {
       references.add(normalized);
@@ -872,7 +925,7 @@ function extractReferences(
   }
 
   for (const match of note.content.matchAll(/\[[^\]]+\]\(([^)]+)\)/g)) {
-    const normalized = normalizeMarkdownLinkTarget(match[1] ?? "", note.path);
+    const normalized = normalizeMarkdownLinkTarget(match[1] ?? "", note.path, note.vaultKey);
     if (normalized) {
       references.add(normalized);
     }
@@ -916,7 +969,17 @@ export class FilesystemNotesIndex implements NotesRepository {
     private readonly vaultDir: string,
     private readonly noteRegistry: NoteRegistry,
     private readonly publicApiBaseUrl = "http://localhost:4000",
+    private readonly mount: VaultMount | null = null,
   ) {}
+
+  private mountedPath(relativePath: string) {
+    const normalized = toPosixRelativePath(relativePath);
+    return this.mount ? path.posix.join(this.mount.label, normalized) : normalized;
+  }
+
+  private mountWarning(warning: string) {
+    return this.mount ? `${this.mount.label}: ${warning}` : warning;
+  }
 
   async listPublishedNotes(): Promise<NoteSummary[]> {
     this.refreshIfStale();
@@ -1075,7 +1138,7 @@ export class FilesystemNotesIndex implements NotesRepository {
     return {
       vaultDir: this.vaultDir,
       noteCount: this.cache.size,
-      warnings: [...this.warnings],
+      warnings: this.warnings.map((warning) => this.mountWarning(warning)),
       lastError: this.lastError,
     };
   }
@@ -1087,7 +1150,7 @@ export class FilesystemNotesIndex implements NotesRepository {
       return null;
     }
 
-    const asset = resolveAssetTarget(reference, note.path, this.assetsByPath, this.assetsByBasename);
+    const asset = resolveAssetTarget(reference, note.path, note.vaultKey, this.assetsByPath, this.assetsByBasename);
     if (!asset) {
       return null;
     }
@@ -1134,7 +1197,7 @@ export class FilesystemNotesIndex implements NotesRepository {
         ? parseWikiLink(trimmed.slice(2, -2))
         : null;
       const targetSlug = parsed
-        ? normalizeWikiLinkTarget(parsed.targetPath, sourceNote.path, this.cache, notesByBasename)
+        ? normalizeWikiLinkTarget(parsed.targetPath, sourceNote.path, sourceNote.vaultKey, this.cache, notesByBasename)
         : null;
       if (targetSlug) {
         const linkedNote = this.cache.get(targetSlug);
@@ -1996,7 +2059,7 @@ export class FilesystemNotesIndex implements NotesRepository {
     notesByBasename: Map<string, CachedNote[]>,
     inline = false,
   ) {
-    const asset = resolveAssetTarget(parsed.targetPath, sourceNote.path, this.assetsByPath, this.assetsByBasename);
+    const asset = resolveAssetTarget(parsed.targetPath, sourceNote.path, sourceNote.vaultKey, this.assetsByPath, this.assetsByBasename);
     if (!asset) {
       return null;
     }
@@ -2071,7 +2134,7 @@ export class FilesystemNotesIndex implements NotesRepository {
         return match;
       }
 
-      const asset = resolveAssetTarget(parsed.targetPath, sourceNote.path, this.assetsByPath, this.assetsByBasename);
+      const asset = resolveAssetTarget(parsed.targetPath, sourceNote.path, sourceNote.vaultKey, this.assetsByPath, this.assetsByBasename);
       if (!asset) {
         if (detectAssetKind(parsed.targetPath) !== "image") {
           return match;
@@ -2105,14 +2168,14 @@ export class FilesystemNotesIndex implements NotesRepository {
 
       const extension = path.posix.extname(target.split("#")[0] ?? "").toLowerCase();
       if (!extension || extension === ".md") {
-        const targetSlug = normalizeMarkdownLinkTarget(target, sourceNote.path);
+        const targetSlug = normalizeMarkdownLinkTarget(target, sourceNote.path, sourceNote.vaultKey);
         const targetNote = targetSlug ? this.cache.get(targetSlug) ?? null : null;
         if (targetNote && this.canRenderLinkedNote(targetNote, adminMode)) {
           return buildNoteHref(targetNote.slug, adminMode);
         }
       }
 
-      const asset = resolveAssetTarget(target, sourceNote.path, this.assetsByPath, this.assetsByBasename);
+      const asset = resolveAssetTarget(target, sourceNote.path, sourceNote.vaultKey, this.assetsByPath, this.assetsByBasename);
       if (asset) {
         return buildAssetHref(this.publicApiBaseUrl, sourceNote.slug, target, adminMode);
       }
@@ -2128,7 +2191,7 @@ export class FilesystemNotesIndex implements NotesRepository {
 
       const target = extractMarkdownDestination(rawTarget);
       const asset = target
-        ? resolveAssetTarget(target, sourceNote.path, this.assetsByPath, this.assetsByBasename)
+        ? resolveAssetTarget(target, sourceNote.path, sourceNote.vaultKey, this.assetsByPath, this.assetsByBasename)
         : null;
       if (!asset || detectAssetKind(asset.path) !== "image") {
         return match;
@@ -2229,7 +2292,7 @@ export class FilesystemNotesIndex implements NotesRepository {
       if (standaloneEmbed) {
         const parsed = parseWikiLink(standaloneEmbed[1] ?? "");
         if (parsed) {
-          const targetSlug = normalizeWikiLinkTarget(parsed.targetPath, note.path, this.cache, input.notesByBasename);
+          const targetSlug = normalizeWikiLinkTarget(parsed.targetPath, note.path, note.vaultKey, this.cache, input.notesByBasename);
           const targetNote = targetSlug ? this.cache.get(targetSlug) ?? null : null;
           let renderedEmbed: string | null = null;
 
@@ -2298,7 +2361,7 @@ export class FilesystemNotesIndex implements NotesRepository {
         return match;
       }
 
-      const targetSlug = normalizeWikiLinkTarget(parsed.targetPath, sourceNote.path, this.cache, notesByBasename);
+      const targetSlug = normalizeWikiLinkTarget(parsed.targetPath, sourceNote.path, sourceNote.vaultKey, this.cache, notesByBasename);
       const targetNote = targetSlug ? this.cache.get(targetSlug) ?? null : null;
       if (!targetNote || !this.canRenderLinkedNote(targetNote, adminMode)) {
         return match;
@@ -2356,7 +2419,7 @@ export class FilesystemNotesIndex implements NotesRepository {
     try {
       const warnings: string[] = [];
       const { markdownFiles, allFiles, signature } = this.readFilesSignature(warnings);
-      const currentPaths = new Set(markdownFiles.map((file) => path.relative(this.vaultDir, file)));
+      const currentPaths = new Set(markdownFiles.map((file) => this.mountedPath(path.relative(this.vaultDir, file))));
       if (signature === this.indexSignature && this.cache.size > 0) {
         this.warnings = warnings;
         this.lastError = null;
@@ -2391,10 +2454,11 @@ export class FilesystemNotesIndex implements NotesRepository {
         }
 
         const relativePath = path.relative(this.vaultDir, absolutePath);
-        const slug = normalizeSlug(relativePath);
+        const mountedPath = this.mountedPath(relativePath);
+        const slug = normalizeSlug(mountedPath);
         const title = path.basename(absolutePath, ".md");
         const id = this.noteRegistry.resolveId({
-          path: relativePath,
+          path: mountedPath,
           slug,
           title,
           contentHash: hashContent(content),
@@ -2406,7 +2470,7 @@ export class FilesystemNotesIndex implements NotesRepository {
           id,
           slug,
           title,
-          path: relativePath,
+          path: mountedPath,
           visibility: normalizeVisibility(parsedFrontmatter.visibility),
           commentsEnabled: parsedFrontmatter.comments !== false,
           editingEnabled: parsedFrontmatter.editing === true,
@@ -2420,9 +2484,11 @@ export class FilesystemNotesIndex implements NotesRepository {
           subtitle: presentation.subtitle,
           frontmatterFields: presentation.fields,
           backlinks: [],
-          breadcrumbs: toBreadcrumbs(relativePath),
+          breadcrumbs: toBreadcrumbs(mountedPath),
           absolutePath,
           mtimeMs: stat.mtimeMs,
+          vaultKey: this.mount?.key ?? null,
+          vaultLabel: this.mount?.label ?? null,
         });
       }
 
@@ -2437,11 +2503,13 @@ export class FilesystemNotesIndex implements NotesRepository {
           continue;
         }
 
-        const relativePath = toPosixRelativePath(path.relative(this.vaultDir, absolutePath));
+        const relativePath = this.mountedPath(path.relative(this.vaultDir, absolutePath));
         nextAssetsByPath.set(normalizeAssetLookupKey(relativePath), {
           path: relativePath,
           absolutePath,
           mtimeMs: fs.statSync(absolutePath).mtimeMs,
+          vaultKey: this.mount?.key ?? null,
+          vaultLabel: this.mount?.label ?? null,
         });
       }
 
@@ -2495,5 +2563,113 @@ export class FilesystemNotesIndex implements NotesRepository {
       allFiles: readableFiles,
       signature,
     };
+  }
+}
+
+export class MultiVaultNotesIndex implements NotesRepository {
+  private readonly repositories: Array<{
+    id: string;
+    name: string;
+    index: FilesystemNotesIndex;
+  }>;
+
+  constructor(
+    vaults: Array<{ id: string; name: string; dir: string }>,
+    noteRegistry: NoteRegistry,
+    publicApiBaseUrl = "http://localhost:4000",
+  ) {
+    const useMounts = vaults.length > 1;
+    this.repositories = vaults.map((vault) => ({
+      id: vault.id,
+      name: vault.name,
+      index: new FilesystemNotesIndex(
+        vault.dir,
+        noteRegistry,
+        publicApiBaseUrl,
+        useMounts ? { key: vault.id, label: vault.name } : null,
+      ),
+    }));
+  }
+
+  private resolveRepository(slug: string) {
+    if (this.repositories.length <= 1) {
+      return this.repositories[0]?.index ?? null;
+    }
+
+    return this.repositories.find((repository) => slug === repository.id || slug.startsWith(`${repository.id}/`))?.index ?? null;
+  }
+
+  async listPublishedNotes(): Promise<NoteSummary[]> {
+    const results = await Promise.all(this.repositories.map((repository) => repository.index.listPublishedNotes()));
+    return results.flat().sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  async listAllNotes(): Promise<NoteSummary[]> {
+    const results = await Promise.all(this.repositories.map((repository) => repository.index.listAllNotes()));
+    return results.flat().sort((a, b) => a.path.localeCompare(b.path));
+  }
+
+  async getPublishedNoteBySlug(slug: string): Promise<PublishedNote | null> {
+    const repository = this.resolveRepository(slug);
+    return repository ? repository.getPublishedNoteBySlug(slug) : null;
+  }
+
+  async getAnyNoteBySlug(slug: string): Promise<PublishedNote | null> {
+    const repository = this.resolveRepository(slug);
+    return repository ? repository.getAnyNoteBySlug(slug) : null;
+  }
+
+  async getNoteDetail(slug: string, authorized: boolean, includeUnpublished = false): Promise<NoteDetailResponse | null> {
+    const repository = this.resolveRepository(slug);
+    return repository ? repository.getNoteDetail(slug, authorized, includeUnpublished) : null;
+  }
+
+  async updateNoteSettings(input: {
+    slug: string;
+    publish: boolean;
+    visibility: "public" | "password";
+    comments: boolean;
+    editing: boolean;
+    passwordHash?: string;
+  }) {
+    const repository = this.resolveRepository(input.slug);
+    return repository ? repository.updateNoteSettings(input) : null;
+  }
+
+  async replaceNoteSelection(input: {
+    slug: string;
+    anchorText: string;
+    anchorStart: number;
+    anchorEnd: number;
+    replacementText: string;
+  }) {
+    const repository = this.resolveRepository(input.slug);
+    return repository ? repository.replaceNoteSelection(input) : null;
+  }
+
+  async replaceNoteContent(input: {
+    slug: string;
+    markdown: string;
+  }) {
+    const repository = this.resolveRepository(input.slug);
+    return repository ? repository.replaceNoteContent(input) : null;
+  }
+
+  getStatus(): NotesIndexStatus {
+    const statuses = this.repositories.map((repository) => repository.index.getStatus());
+    return {
+      vaultDir: statuses.map((status) => status.vaultDir).join(" | "),
+      noteCount: statuses.reduce((count, status) => count + status.noteCount, 0),
+      warnings: statuses.flatMap((status) => status.warnings),
+      lastError: statuses
+        .map((status, index) => status.lastError ? `${this.repositories[index]?.name}: ${status.lastError}` : null)
+        .filter((message): message is string => message !== null)
+        .join("; ") || null,
+    };
+  }
+
+  resolveAssetReference(sourceSlug: string, reference: string, includeUnpublished = false) {
+    const repository = this.resolveRepository(sourceSlug);
+    return repository ? repository.resolveAssetReference(sourceSlug, reference, includeUnpublished) : null;
   }
 }

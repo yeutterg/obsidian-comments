@@ -6,7 +6,7 @@ import type { Server } from "node:http";
 import { apiConfig } from "./config.js";
 import { CommentsStore } from "./comments-store.js";
 import { NoteRegistry } from "./note-registry.js";
-import { FilesystemNotesIndex } from "./notes-index.js";
+import { FilesystemNotesIndex, MultiVaultNotesIndex } from "./notes-index.js";
 import { readSession, writeSession } from "./session.js";
 import type { NoteDetailResponse, NotesListResponse, NoteSummary, SystemCapabilities } from "@commonplace/shared";
 import {
@@ -22,7 +22,9 @@ import { VaultConnectionStore } from "./vault-connection-store.js";
 
 const app = express();
 const noteRegistry = new NoteRegistry(apiConfig.sqlitePath);
-const notesRepository = new FilesystemNotesIndex(apiConfig.vaultDir, noteRegistry, apiConfig.publicApiBaseUrl);
+const notesRepository = apiConfig.vaults.length > 1
+  ? new MultiVaultNotesIndex(apiConfig.vaults, noteRegistry, apiConfig.publicApiBaseUrl)
+  : new FilesystemNotesIndex(apiConfig.vaultDir, noteRegistry, apiConfig.publicApiBaseUrl);
 const commentsStore = new CommentsStore(apiConfig.sqlitePath);
 const vaultConnectionStore = new VaultConnectionStore(apiConfig.sqlitePath);
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();

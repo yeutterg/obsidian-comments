@@ -1364,6 +1364,24 @@ mark[data-comment-id].active {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+.comments-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.comments-sort-tabs {
+  min-width: 0;
+}
+
+.comments-filter-toggle.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+
 .comments-meta,
 .comment-card-meta,
 .connected-repo-card span {
@@ -1900,6 +1918,7 @@ mark[data-comment-id].active {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .connected-repo-icon {
@@ -1911,6 +1930,17 @@ mark[data-comment-id].active {
   border-radius: 999px;
   background: rgba(46, 204, 113, 0.12);
   color: var(--success);
+}
+
+.note-mobile-back,
+.note-mobile-type-controls {
+  flex-shrink: 0;
+}
+
+.note-mobile-type-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .honeypot-field {
@@ -1949,6 +1979,14 @@ mark[data-comment-id].active {
 
   .note-breadcrumb-link {
     max-width: 9rem;
+  }
+
+  .note-topbar-left {
+    gap: 8px;
+  }
+
+  .note-topbar-actions {
+    gap: 2px;
   }
 
   .note-reader-inner {
@@ -2045,6 +2083,14 @@ mark[data-comment-id].active {
     border-left: 0;
     transform: translateY(calc(100% + 24px));
     transition: transform 0.22s ease;
+  }
+
+  .comments-toolbar {
+    padding: 10px 20px 12px;
+  }
+
+  .comments-sort-tabs .segmented-tab {
+    padding: 0 8px;
   }
 
   .mobile-comments-drawer.open .mobile-comments-backdrop {

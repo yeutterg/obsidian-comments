@@ -10,10 +10,10 @@ import AdminSettingsPanel from "@/components/AdminSettingsPanel";
 import { getClientApiBaseUrl } from "@/lib/api-base";
 import { getNoteHref } from "@/lib/directory-tree";
 import {
+  ArrowLeftIcon,
   MessageSquareIcon,
   MinusIcon,
   MoreHorizontalIcon,
-  PencilIcon,
   PlusIcon,
   SettingsIcon,
   ShareIcon,
@@ -59,7 +59,7 @@ export default function NoteViewerWrapper({
   const directoryHref = adminMode ? "/admin" : "/";
   const noteHref = adminMode ? `/admin${getNoteHref(detail.note.slug)}` : getNoteHref(detail.note.slug);
   const breadcrumbLinks = useMemo(() => {
-    const items = [{ label: "Commonplace", href: directoryHref, current: detail.breadcrumbs.length === 0 }];
+    const items = [{ label: "obsidian-vault", href: directoryHref, current: detail.breadcrumbs.length === 0 }];
     let cumulativePath = "";
 
     detail.breadcrumbs.forEach((part, index) => {
@@ -136,12 +136,6 @@ export default function NoteViewerWrapper({
     }
     await navigator.clipboard.writeText(publicUrl).catch(() => undefined);
     setStatusNotice(detail.note.published ? "Public link copied." : "Draft link copied. Publish the note to share it publicly.");
-  }
-
-  function toggleDirectEditMode() {
-    setAdminPanelMode(null);
-    setMobileMenuOpen(false);
-    setDirectEditMode((current) => !current);
   }
 
   useEffect(() => {
@@ -298,6 +292,11 @@ export default function NoteViewerWrapper({
     <div className={`note-page ${adminMode ? "note-page-admin" : ""}`}>
       <header className="note-topbar">
         <div className="note-topbar-left">
+          {isMobile ? (
+            <Link href={directoryHref} className="icon-button note-mobile-back" aria-label="Back to directory">
+              <ArrowLeftIcon width={16} height={16} />
+            </Link>
+          ) : null}
           <div className="note-breadcrumbs">
             {breadcrumbLinks.map((item, index) => (
               <span key={`${item.label}-${item.href}`} className="note-breadcrumb-item">
@@ -313,6 +312,26 @@ export default function NoteViewerWrapper({
           </div>
         </div>
         <div className="note-topbar-actions" ref={isMobile ? actionMenuRef : undefined}>
+          {isMobile ? (
+            <div className="note-mobile-type-controls" aria-label="Text size controls">
+              <button
+                type="button"
+                className="icon-button type-scale"
+                onClick={() => setFontScale((scale) => Math.max(0.9, Number((scale - 0.05).toFixed(2))))}
+                aria-label="Decrease text size"
+              >
+                <MinusIcon width={14} height={14} />
+              </button>
+              <button
+                type="button"
+                className="icon-button type-scale"
+                onClick={() => setFontScale((scale) => Math.min(1.2, Number((scale + 0.05).toFixed(2))))}
+                aria-label="Increase text size"
+              >
+                <PlusIcon width={14} height={14} />
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             className="icon-button with-badge"
@@ -339,16 +358,6 @@ export default function NoteViewerWrapper({
               </button>
               {mobileMenuOpen ? (
                 <div className="mobile-action-menu" id="mobile-note-actions-menu">
-                  {adminMode ? (
-                    <button
-                      type="button"
-                      className={`mobile-action-menu-item ${directEditMode ? "active" : ""}`}
-                      onClick={toggleDirectEditMode}
-                    >
-                      <PencilIcon width={16} height={16} />
-                      <span>{directEditMode ? "Close editor" : "Edit note"}</span>
-                    </button>
-                  ) : null}
                   {adminMode ? (
                     <button
                       type="button"
@@ -380,24 +389,6 @@ export default function NoteViewerWrapper({
                       <span className="mobile-action-menu-label">Text size</span>
                       <span className="mobile-action-menu-value">{Math.round(fontScale * 100)}%</span>
                     </div>
-                    <div className="mobile-action-menu-stepper">
-                      <button
-                        type="button"
-                        className="icon-button type-scale"
-                        onClick={() => setFontScale((scale) => Math.max(0.9, Number((scale - 0.05).toFixed(2))))}
-                        aria-label="Decrease text size"
-                      >
-                        <MinusIcon width={14} height={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className="icon-button type-scale"
-                        onClick={() => setFontScale((scale) => Math.min(1.2, Number((scale + 0.05).toFixed(2))))}
-                        aria-label="Increase text size"
-                      >
-                        <PlusIcon width={14} height={14} />
-                      </button>
-                    </div>
                   </div>
                   <ThemeToggle variant="menu" />
                 </div>
@@ -407,15 +398,6 @@ export default function NoteViewerWrapper({
             <>
               {adminMode ? (
                 <>
-                  <button
-                    type="button"
-                    className={`icon-button ${directEditMode ? "active" : ""}`}
-                    onClick={toggleDirectEditMode}
-                    aria-label={directEditMode ? "Close note editor" : "Edit note text"}
-                    aria-pressed={directEditMode}
-                  >
-                    <PencilIcon width={16} height={16} />
-                  </button>
                   <button
                     type="button"
                     className={`icon-button ${adminPanelMode === "sharing" ? "active" : ""}`}

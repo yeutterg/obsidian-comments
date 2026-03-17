@@ -79,6 +79,10 @@ export function PencilIcon(props: IconProps) {
   return <BaseIcon {...props}><path d="m3 21 3.75-.75L18 9l-3-3L3.75 17.25z" /><path d="m14.5 6.5 3 3" /></BaseIcon>;
 }
 
+export function CopyIcon(props: IconProps) {
+  return <BaseIcon {...props}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1" /></BaseIcon>;
+}
+
 export function SettingsIcon(props: IconProps) {
   return <BaseIcon {...props}><path d="M12 3v2.5" /><path d="M12 18.5V21" /><path d="m4.93 4.93 1.77 1.77" /><path d="m17.3 17.3 1.77 1.77" /><path d="M3 12h2.5" /><path d="M18.5 12H21" /><path d="m4.93 19.07 1.77-1.77" /><path d="m17.3 6.7 1.77-1.77" /><circle cx="12" cy="12" r="3.5" /></BaseIcon>;
 }

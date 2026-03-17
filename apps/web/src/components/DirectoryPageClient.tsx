@@ -119,11 +119,20 @@ export default function DirectoryPageClient({
   const tree = useMemo(() => buildDirectoryTree(notes), [notes]);
   const allFolderIds = useMemo(() => collectFolderIds(tree), [tree]);
   const [query, setQuery] = useState(initialQuery);
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set(allFolderIds));
 
   useEffect(() => {
     setQuery(initialQuery);
   }, [initialQuery]);
+
+  useEffect(() => {
+    setExpanded((current) => {
+      if (current.size > 0) {
+        return current;
+      }
+      return new Set(allFolderIds);
+    });
+  }, [allFolderIds]);
 
   const filteredTree = useMemo(() => filterDirectory(tree, query), [tree, query]);
   const forcedExpanded = useMemo(() => new Set(collectFolderIds(filteredTree)), [filteredTree]);

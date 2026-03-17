@@ -61,15 +61,15 @@ export default function ConnectVaultClient({ initial }: { initial: VaultConnecti
     <div className="connect-page">
       <div className="connect-card">
         <section className="connect-section">
-          <p className="vault-eyebrow">CONNECT FOLDER</p>
+          <p className="vault-eyebrow">Connect Folder</p>
           <h1>Connect Your Vault</h1>
           <p className="connect-copy">
-            Save the local folder path and site URL prefix used for this vault-backed deployment.
+            Save the local folder path and site URL prefix used for this Commonplace deployment.
           </p>
         </section>
 
         <section className="connect-section">
-          <p className="vault-eyebrow">CONNECT FOLDER</p>
+          <p className="vault-eyebrow">Connect Folder</p>
           <button
             type="button"
             className="primary-button connect-action"
@@ -83,7 +83,7 @@ export default function ConnectVaultClient({ initial }: { initial: VaultConnecti
         </section>
 
         <section className="connect-section">
-          <p className="vault-eyebrow">CONNECTED FOLDER</p>
+          <p className="vault-eyebrow">Connected Folder</p>
           {state.connected ? (
             <div className="connected-repo-card">
               <div className="connected-repo-main">
@@ -98,12 +98,12 @@ export default function ConnectVaultClient({ initial }: { initial: VaultConnecti
               </button>
             </div>
           ) : (
-            <p className="connect-helper">No local folder connected yet.</p>
+            <p className="connect-helper">No vault connected yet.</p>
           )}
         </section>
 
         <section className="connect-section">
-          <p className="vault-eyebrow">VAULT SETTINGS</p>
+          <p className="vault-eyebrow">Vault Settings</p>
           <label className="connect-field">
             <span>Vault Name</span>
             <div className="field-shell">
@@ -116,6 +116,7 @@ export default function ConnectVaultClient({ initial }: { initial: VaultConnecti
                 disabled={loading}
               />
             </div>
+            <p className="connect-helper">The connected vault name shown in the admin UI.</p>
           </label>
           <label className="connect-field">
             <span>Local Folder Path</span>
@@ -129,6 +130,7 @@ export default function ConnectVaultClient({ initial }: { initial: VaultConnecti
                 disabled={loading}
               />
             </div>
+            <p className="connect-helper">Path to the local vault folder for this deployment.</p>
           </label>
           <label className="connect-field">
             <span>Site URL Prefix</span>
@@ -142,6 +144,7 @@ export default function ConnectVaultClient({ initial }: { initial: VaultConnecti
                 disabled={loading}
               />
             </div>
+            <p className="connect-helper">Base URL path for published notes.</p>
           </label>
         </section>
 

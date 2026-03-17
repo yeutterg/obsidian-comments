@@ -52,6 +52,8 @@ export default function CommentSidebar({
   replyTargetId,
   onReplyTargetChange,
 }: Props) {
+  const [sortMode, setSortMode] = useState<"doc" | "time">("doc");
+  const [showResolved, setShowResolved] = useState(false);
   const [replyEmail, setReplyEmail] = useState("");
   const [replyBody, setReplyBody] = useState("");
   const [replyError, setReplyError] = useState("");
@@ -75,10 +77,21 @@ export default function CommentSidebar({
     return count + (comment.approved ? 0 : 1) + replyPending;
   }, 0);
 
-  const sorted = useMemo(
-    () => [...comments.filter((comment) => comment.status === "open")].sort((a, b) => a.anchorStart - b.anchorStart),
-    [comments],
+  const visibleComments = useMemo(
+    () => comments.filter((comment) => showResolved || comment.status === "open"),
+    [comments, showResolved],
   );
+
+  const sorted = useMemo(() => {
+    const next = [...visibleComments];
+    next.sort((a, b) => {
+      if (sortMode === "time") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      return a.anchorStart - b.anchorStart;
+    });
+    return next;
+  }, [sortMode, visibleComments]);
 
   const content = (
     <>
@@ -95,6 +108,35 @@ export default function CommentSidebar({
             <XIcon width={16} height={16} />
           </button>
         ) : null}
+      </div>
+
+      <div className="comments-toolbar">
+        <div className="segmented-tabs comments-sort-tabs" role="tablist" aria-label="Comment sort">
+          <button
+            type="button"
+            className={`segmented-tab ${sortMode === "doc" ? "active" : ""}`}
+            onClick={() => setSortMode("doc")}
+            aria-pressed={sortMode === "doc"}
+          >
+            Doc order
+          </button>
+          <button
+            type="button"
+            className={`segmented-tab ${sortMode === "time" ? "active" : ""}`}
+            onClick={() => setSortMode("time")}
+            aria-pressed={sortMode === "time"}
+          >
+            Time
+          </button>
+        </div>
+        <button
+          type="button"
+          className={`mini-action comments-filter-toggle ${showResolved ? "active" : ""}`}
+          onClick={() => setShowResolved((value) => !value)}
+          aria-pressed={showResolved}
+        >
+          Resolved
+        </button>
       </div>
 
       <div className="comments-scroll">

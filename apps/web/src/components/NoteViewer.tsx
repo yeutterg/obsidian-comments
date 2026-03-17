@@ -6,7 +6,7 @@ import type { CommentRecord, NoteDetailResponse, NoteDisplayField } from "@commo
 import CommentSidebar, { CommentData } from "./CommentSidebar";
 import CommentForm from "./CommentForm";
 import { getClientApiBaseUrl } from "@/lib/api-base";
-import { MessageSquareIcon, PencilIcon } from "./Icons";
+import { CopyIcon, MessageSquareIcon, PencilIcon } from "./Icons";
 import { getNoteHref } from "@/lib/directory-tree";
 
 interface Props {
@@ -553,6 +553,19 @@ export default function NoteViewer({
     }
   }
 
+  async function handleCopySelection() {
+    if (!selection) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(selection.text);
+      setSubmissionNotice("Copied selection.");
+    } catch {
+      setSubmissionNotice("Unable to copy selection.");
+    }
+    clearSelectionState();
+  }
+
   const handleSaveMarkdown = useCallback(async () => {
     if (!onSaveMarkdown) {
       return;
@@ -704,36 +717,47 @@ export default function NoteViewer({
             className="selection-toolbar"
             style={{
               top: selection.rect.bottom + 10,
-              left: selection.rect.left + Math.max(selection.rect.width / 2 - (adminMode && onEditSelection ? 86 : 48), 0),
+              left: selection.rect.left + Math.max(selection.rect.width / 2 - (adminMode && onEditSelection ? 78 : 56), 0),
             }}
           >
             {adminMode && onEditSelection ? (
               <button
                 type="button"
-                className="selection-action ghost-button"
+                className="selection-action ghost-button icon-only"
                 onMouseDown={(event) => {
                   event.preventDefault();
                   setShowEditForm(true);
                   setEditValue(selection.text);
                 }}
+                aria-label="Edit selection"
               >
                 <PencilIcon width={14} height={14} />
-                Edit
               </button>
             ) : null}
             {detail.note.commentsEnabled ? (
               <button
                 type="button"
-                className="selection-action primary-button"
+                className="selection-action primary-button icon-only"
                 onMouseDown={(event) => {
                   event.preventDefault();
                   setShowCommentForm(true);
                 }}
+                aria-label="Comment on selection"
               >
                 <MessageSquareIcon width={14} height={14} />
-                Comment
               </button>
             ) : null}
+            <button
+              type="button"
+              className="selection-action ghost-button icon-only"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                void handleCopySelection();
+              }}
+              aria-label="Copy selection"
+            >
+              <CopyIcon width={14} height={14} />
+            </button>
           </div>
         ) : null}
 
@@ -742,7 +766,7 @@ export default function NoteViewer({
             className="highlight-hover-toolbar"
             style={{
               top: hoveredHighlight.rect.bottom + 8,
-              left: hoveredHighlight.rect.left + Math.max(hoveredHighlight.rect.width / 2 - 74, 0),
+              left: hoveredHighlight.rect.left + Math.max(hoveredHighlight.rect.width / 2 - 58, 0),
             }}
             onMouseEnter={cancelHoveredClear}
             onMouseLeave={clearHoveredHighlightSoon}
@@ -750,7 +774,7 @@ export default function NoteViewer({
             {onEditSelection ? (
               <button
                 type="button"
-                className="selection-action ghost-button"
+                className="selection-action ghost-button icon-only"
                 onClick={() => {
                   cancelHoveredClear();
                   setSelection({
@@ -764,24 +788,24 @@ export default function NoteViewer({
                   setShowCommentForm(false);
                   setHoveredHighlight(null);
                 }}
+                aria-label="Edit suggested change"
               >
                 <PencilIcon width={14} height={14} />
-                Edit
               </button>
             ) : null}
             {detail.note.commentsEnabled ? (
               <button
                 type="button"
-                className="selection-action primary-button"
+                className="selection-action primary-button icon-only"
                 onClick={() => {
                   setActiveCommentId(hoveredHighlight.commentId);
                   setReplyTargetId(hoveredHighlight.commentId);
                   onCommentsOpenChange(true);
                   setHoveredHighlight(null);
                 }}
+                aria-label="Open comment thread"
               >
                 <MessageSquareIcon width={14} height={14} />
-                Comment
               </button>
             ) : null}
           </div>

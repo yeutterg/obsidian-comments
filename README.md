@@ -2,7 +2,7 @@
 
 Commonplace is a web interface for Markdown vaults with collaborative comments and editing. Compatible with the core Obsidian Markdown format.
 
-It reads a local Markdown vault from disk, renders notes on the web, stores collaborative state in SQLite, and leaves the source of truth in plain files.
+It reads one or more local Markdown vaults from disk, renders notes on the web, stores collaborative state in SQLite, and leaves the source of truth in plain files.
 
 ## Current Functionality
 
@@ -19,6 +19,7 @@ It reads a local Markdown vault from disk, renders notes on the web, stores coll
 - Tasks plugin fenced-block rendering
 - Frontmatter metadata display with clickable URLs and wiki-link references
 - Stable internal note IDs even when files move or rename
+- Multiple local vaults mounted into one combined directory when configured with `VAULT_DIRS`
 
 ## Current Limitations
 
@@ -28,7 +29,7 @@ It reads a local Markdown vault from disk, renders notes on the web, stores coll
 - `/admin` is currently a trusted-operator interface, not a separately authenticated admin surface
 - Public comments and replies require approval; admin submissions are auto-approved
 - `users` visibility exists in the admin UI as a mock state, but backend persistence and enforcement currently support only `public` and `password`
-- The connect-folder screen stores deployment metadata in SQLite, but it does not hot-swap `VAULT_DIR` at runtime
+- The connect-folder screen stores deployment metadata in SQLite, but it does not hot-swap `VAULT_DIR` or `VAULT_DIRS` at runtime
 
 ## Frontmatter Contract
 
@@ -37,26 +38,26 @@ Only a small set of frontmatter keys changes application behavior.
 ### Control Fields
 
 - `publish`
-  Default: `false`
-  Behavior: only literal `true` puts the note in the public directory. Notes without `publish: true` still appear in `/admin`.
+  - Default: `false`
+  - Behavior: only literal `true` puts the note in the public directory. Notes without `publish: true` still appear in `/admin`.
 
 - `visibility`
-  Default: `public`
-  Supported runtime values: `public`, `password`
-  UI-only state: `users`
-  Behavior: `password` requires authentication before the note body and comments are available. Any other value currently behaves as `public` in the backend indexer. The admin UI can show `users`, but that state is not yet persisted or enforced by the backend.
+  - Default: `public`
+  - Supported runtime values: `public`, `password`
+  - UI-only state: `users`
+  - Behavior: `password` requires authentication before the note body and comments are available. Any other value currently behaves as `public` in the backend indexer. The admin UI can show `users`, but that state is not yet persisted or enforced by the backend.
 
 - `comments`
-  Default: `true`
-  Behavior: only literal `false` disables comments and comment API access for that note.
+  - Default: `true`
+  - Behavior: only literal `false` disables comments and comment API access for that note.
 
 - `password`
-  Default: unset
-  Behavior: used only when `visibility: password`. If you set it in frontmatter manually, it should be a SHA-256 hash string. The admin settings UI hashes plaintext before saving.
+  - Default: unset
+  - Behavior: used only when `visibility: password`. If you set it in frontmatter manually, it should be a SHA-256 hash string. The admin settings UI hashes plaintext before saving.
 
 - `editing`
-  Default: `false`
-  Behavior: stored as note metadata and exposed in the admin settings UI. Today it is not a hard enforcement gate, because admin-mode editing is available regardless of this flag.
+  - Default: `false`
+  - Behavior: stored as note metadata and exposed in the admin settings UI. Today it is not a hard enforcement gate, because admin-mode editing is available regardless of this flag.
 
 ### Presentation Fields
 
@@ -118,6 +119,8 @@ Supported today:
 - Dataview `TABLE`, `LIST`, and `TASK`
 - Obsidian Bases YAML table views
 - Tasks plugin fenced blocks
+
+Most Obsidian community plugins are not supported. Commonplace only renders a small set of plugin-driven syntaxes that have explicit implementation in the backend renderer.
 
 Notes with invalid YAML frontmatter are skipped and surfaced as warnings in the API/directory UI.
 
@@ -194,7 +197,7 @@ Default local URLs:
 - web: `http://localhost:3000`
 - api: `http://localhost:4000`
 
-If `VAULT_DIR` is not set, the API defaults to the demo content in `apps/web/content`.
+If neither `VAULT_DIRS` nor `VAULT_DIR` is set, the API defaults to the demo content in `apps/web/content`.
 
 ## Environment Variables
 
@@ -206,7 +209,8 @@ Frontend:
 Backend:
 
 - `PORT`: API port
-- `VAULT_DIR`: local vault path to index
+- `VAULT_DIRS`: optional semicolon-separated list of local vault paths to index together
+- `VAULT_DIR`: fallback single local vault path to index
 - `STATE_DIR`: persistent directory for SQLite and runtime state
 - `PUBLIC_API_BASE_URL`: optional absolute API URL used when rendering asset links
 - `CORS_ORIGIN`: allowed frontend origin
@@ -260,4 +264,4 @@ The `/connect` flow stores:
 - local folder path
 - site URL prefix
 
-That data is useful for the UI and deployment metadata, but it does not currently reconfigure the live backend indexer. The actual indexed vault still comes from `VAULT_DIR`.
+That data is useful for the UI and deployment metadata, but it does not currently reconfigure the live backend indexer. The actual indexed vault set still comes from `VAULT_DIRS` or `VAULT_DIR`.
