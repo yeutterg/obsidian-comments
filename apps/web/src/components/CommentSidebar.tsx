@@ -134,29 +134,16 @@ export default function CommentSidebar({
       <div className="comments-scroll">
         {sorted.length === 0 ? (
           comments.length === 0 ? (
-            <div className="comments-empty comments-empty-first">
-              <div className="comments-empty-icon" aria-hidden="true">
-                <MessageSquareIcon width={20} height={20} />
-              </div>
+            <div className="comments-empty">
+              <MessageSquareIcon width={32} height={32} className="comments-empty-icon" />
               <p className="comments-empty-title">No comments yet</p>
-              <p className="comments-empty-body">
-                Start a discussion by selecting text in the note, then click <strong>+ Comment</strong>.
-              </p>
-              <div className="comments-empty-steps">
-                <p>1. Highlight a sentence or paragraph</p>
-                <p>2. Click <strong>+ Comment</strong></p>
-                <p>3. Submit your note</p>
-              </div>
+              <p className="comments-empty-body">Highlight text in the note to start a discussion.</p>
             </div>
           ) : (
-            <div className="comments-empty comments-empty-resolved">
-              <div className="comments-empty-icon" aria-hidden="true">
-                <MessageSquareIcon width={20} height={20} />
-              </div>
+            <div className="comments-empty">
+              <MessageSquareIcon width={32} height={32} className="comments-empty-icon" />
               <p className="comments-empty-title">No open comments</p>
-              <p className="comments-empty-body">
-                All comments in this note are resolved.
-              </p>
+              <p className="comments-empty-body">All comments in this note are resolved.</p>
             </div>
           )
         ) : (
