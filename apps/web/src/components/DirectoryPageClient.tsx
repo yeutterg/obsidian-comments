@@ -455,13 +455,6 @@ export default function DirectoryPageClient({
               </div>
             ) : null}
 
-            {!error && warnings.length > 0 ? (
-              <div className="vault-alert">
-                <strong>Partial vault load.</strong> {warnings[0]}
-                {warnings.length > 1 ? ` (+${warnings.length - 1} more)` : ""}
-              </div>
-            ) : null}
-
             {filteredTree.length === 0 ? (
               <div className="vault-empty">
                 {error ? "The vault could not be read." : "No matching notes."}
