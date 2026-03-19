@@ -169,7 +169,7 @@ app.get("/api/system/capabilities", (_req, res) => {
 app.get("/api/notes", async (_req, res) => {
   try {
     const response: NotesListResponse = {
-      notes: withCommentCounts(await notesRepository.listPublishedNotes()),
+      notes: withCommentCounts(await notesRepository.listPublicNotes()),
       error: notesStatus().lastError,
       warnings: notesStatus().warnings,
     };
@@ -282,7 +282,6 @@ app.patch("/api/admin/note/settings", async (req, res) => {
   try {
     const updated = await notesRepository.updateNoteSettings({
       slug: parsed.data.slug,
-      publish: parsed.data.publish,
       visibility: parsed.data.visibility,
       comments: parsed.data.comments,
       editing: parsed.data.editing,
@@ -382,7 +381,7 @@ app.post("/api/auth", async (req, res) => {
 
   let note;
   try {
-    note = await notesRepository.getPublishedNoteBySlug(slug);
+    note = await notesRepository.getPublicNoteBySlug(slug);
   } catch {
     res.status(503).json({ error: "Unable to load note" });
     return;

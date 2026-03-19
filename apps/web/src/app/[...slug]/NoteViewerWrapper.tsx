@@ -84,40 +84,24 @@ export default function NoteViewerWrapper({
   }
 
   async function saveNoteSettings(input: {
-    publish: boolean;
-    visibility: "public" | "password" | "users";
+    visibility: "public" | "password" | "users" | "private";
     comments: boolean;
     editing: boolean;
     password?: string;
     internalUsers: string[];
     externalEmails: string[];
   }) {
-    if (input.visibility === "users") {
-      setDetail((current) => ({
-        ...current,
-        note: {
-          ...current.note,
-          published: input.publish,
-          visibility: "users",
-          commentsEnabled: input.comments,
-          editingEnabled: input.editing,
-        },
-        accessControl: {
-          internalUsers: input.internalUsers,
-          externalEmails: input.externalEmails,
-        },
-      }));
-      setStatusNotice("Users visibility saved in the web UI mockup. Backend enforcement is not wired yet.");
-      return;
-    }
-
     const response = await fetch(`${getClientApiBaseUrl()}/api/admin/note/settings`, {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         slug: detail.note.slug,
-        ...input,
+        visibility: input.visibility,
+        comments: input.comments,
+        editing: input.editing,
+        password: input.password,
+        allowedEmails: input.visibility === "users" ? input.externalEmails : undefined,
       }),
     });
     if (!response.ok) {
@@ -135,7 +119,7 @@ export default function NoteViewerWrapper({
       return;
     }
     await navigator.clipboard.writeText(publicUrl).catch(() => undefined);
-    setStatusNotice(detail.note.published ? "Public link copied." : "Draft link copied. Publish the note to share it publicly.");
+    setStatusNotice(detail.note.visibility === "public" ? "Public link copied." : "Link copied. Change visibility to Public to share openly.");
   }
 
   useEffect(() => {

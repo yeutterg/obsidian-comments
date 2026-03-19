@@ -1,4 +1,4 @@
-export type NoteVisibility = "public" | "password" | "users";
+export type NoteVisibility = "public" | "password" | "users" | "private";
 
 export interface NoteAccessControl {
   internalUsers: string[];
@@ -7,7 +7,6 @@ export interface NoteAccessControl {
 
 export interface NoteFrontmatter {
   [key: string]: unknown;
-  publish?: boolean;
   visibility?: NoteVisibility;
   comments?: boolean;
   password?: string;
@@ -26,7 +25,7 @@ export interface BacklinkSummary {
   slug: string;
   title: string;
   path: string;
-  published: boolean;
+  visibility: NoteVisibility;
 }
 
 export interface NoteSummary {
@@ -37,7 +36,6 @@ export interface NoteSummary {
   visibility: NoteVisibility;
   commentsEnabled: boolean;
   editingEnabled: boolean;
-  published: boolean;
   commentCount: number;
 }
 

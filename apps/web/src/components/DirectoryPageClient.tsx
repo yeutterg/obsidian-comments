@@ -18,16 +18,17 @@ import UserMenu from "@/components/UserMenu";
 import { getClientApiBaseUrl } from "@/lib/api-base";
 
 function statusForNote(note: NoteSummary) {
-  if (note.visibility === "users") {
-    return { label: "Users", className: "status-pill status-pill-users" };
+  switch (note.visibility) {
+    case "public":
+      return { label: "Public", className: "status-pill status-pill-published" };
+    case "password":
+      return { label: "Password", className: "status-pill status-pill-private" };
+    case "users":
+      return { label: "Users", className: "status-pill status-pill-users" };
+    case "private":
+    default:
+      return { label: "Private", className: "status-pill status-pill-draft" };
   }
-  if (note.visibility === "password") {
-    return { label: "Private", className: "status-pill status-pill-private" };
-  }
-  if (note.published) {
-    return { label: "Published", className: "status-pill status-pill-published" };
-  }
-  return { label: "Draft", className: "status-pill status-pill-draft" };
 }
 
 function collectNoteSlugs(node: DirectoryNode): string[] {
@@ -156,10 +157,9 @@ function BulkSharingPanel({
 }: {
   selectedNotes: NoteSummary[];
   onClose: () => void;
-  onApply: (settings: { publish: boolean; visibility: "public" | "password" | "users"; comments: boolean; editing: boolean; password?: string }) => Promise<void>;
+  onApply: (settings: { visibility: "public" | "password" | "users" | "private"; comments: boolean; editing: boolean; password?: string }) => Promise<void>;
 }) {
-  const [publish, setPublish] = useState(true);
-  const [visibility, setVisibility] = useState<"public" | "password" | "users">("public");
+  const [visibility, setVisibility] = useState<"public" | "password" | "users" | "private">("public");
   const [comments, setComments] = useState(true);
   const [editing, setEditing] = useState(false);
   const [password, setPassword] = useState("");
@@ -185,26 +185,10 @@ function BulkSharingPanel({
 
         <div className="bulk-sharing-divider" />
 
-        <div className="settings-row">
-          <span className="settings-row-label">
-            <span>Publish</span>
-            <span className="settings-row-desc">Make notes accessible</span>
-          </span>
-          <button
-            type="button"
-            className={`toggle-switch ${publish ? "on" : ""}`}
-            onClick={() => setPublish(!publish)}
-            aria-pressed={publish}
-          >
-            <span />
-          </button>
-        </div>
-
-        <div className="bulk-sharing-divider" />
-
         <div className="bulk-sharing-section">
           <span className="bulk-sharing-section-label">Visibility</span>
           <div className="segmented-tabs">
+            <button type="button" className={`segmented-tab ${visibility === "private" ? "active" : ""}`} onClick={() => setVisibility("private")}>Private</button>
             <button type="button" className={`segmented-tab ${visibility === "public" ? "active" : ""}`} onClick={() => setVisibility("public")}>Public</button>
             <button type="button" className={`segmented-tab ${visibility === "password" ? "active" : ""}`} onClick={() => setVisibility("password")}>Password</button>
             <button type="button" className={`segmented-tab ${visibility === "users" ? "active" : ""}`} onClick={() => setVisibility("users")}>Users</button>
@@ -249,7 +233,7 @@ function BulkSharingPanel({
           onClick={async () => {
             setSaving(true);
             try {
-              await onApply({ publish, visibility, comments, editing, password: password.trim() || undefined });
+              await onApply({ visibility, comments, editing, password: password.trim() || undefined });
             } finally {
               setSaving(false);
             }
@@ -356,8 +340,7 @@ export default function DirectoryPageClient({
   };
 
   const handleBulkApply = async (settings: {
-    publish: boolean;
-    visibility: "public" | "password" | "users";
+    visibility: "public" | "password" | "users" | "private";
     comments: boolean;
     editing: boolean;
     password?: string;
@@ -371,7 +354,6 @@ export default function DirectoryPageClient({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             slug,
-            publish: settings.publish,
             visibility: settings.visibility,
             comments: settings.comments,
             editing: settings.editing,

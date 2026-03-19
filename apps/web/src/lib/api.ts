@@ -41,10 +41,11 @@ function normalizeNoteSummary(input: unknown, index: number): NoteSummary | null
     ? "password"
     : row.visibility === "users"
       ? "users"
-      : "public";
+      : row.visibility === "private"
+        ? "private"
+        : "public";
   const commentsEnabled = typeof row.commentsEnabled === "boolean" ? row.commentsEnabled : true;
   const editingEnabled = typeof row.editingEnabled === "boolean" ? row.editingEnabled : false;
-  const published = typeof row.published === "boolean" ? row.published : true;
   const commentCount = typeof row.commentCount === "number" ? row.commentCount : 0;
 
   if (!slug) {
@@ -59,7 +60,6 @@ function normalizeNoteSummary(input: unknown, index: number): NoteSummary | null
     visibility,
     commentsEnabled,
     editingEnabled,
-    published,
     commentCount,
   };
 }
@@ -107,11 +107,11 @@ function normalizeBacklinks(input: unknown): BacklinkSummary[] {
     const slug = typeof row.slug === "string" ? row.slug : "";
     const title = typeof row.title === "string" ? row.title : slug;
     const path = typeof row.path === "string" ? row.path : slug;
-    const published = typeof row.published === "boolean" ? row.published : false;
+    const visibility = row.visibility === "password" ? "password" : row.visibility === "users" ? "users" : row.visibility === "private" ? "private" : "public";
     if (!slug) {
       return [];
     }
-    return [{ slug, title, path, published }];
+    return [{ slug, title, path, visibility }];
   });
 }
 
@@ -125,7 +125,6 @@ function normalizeNoteDetail(input: unknown): NoteDetailResponse {
     visibility: "public",
     commentsEnabled: true,
     editingEnabled: false,
-    published: true,
     commentCount: 0,
   };
 

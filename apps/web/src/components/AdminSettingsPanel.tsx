@@ -19,8 +19,7 @@ interface Props {
   mode?: "settings" | "sharing";
   onClose: () => void;
   onSave: (input: {
-    publish: boolean;
-    visibility: "public" | "password" | "users";
+    visibility: "public" | "password" | "users" | "private";
     comments: boolean;
     editing: boolean;
     password?: string;
@@ -65,13 +64,7 @@ export default function AdminSettingsPanel({
   onClose,
   onSave,
 }: Props) {
-  const initialVisibility = detail.note.visibility === "password"
-    ? "password"
-    : detail.note.visibility === "users"
-      ? "users"
-      : "public";
-  const [publish, setPublish] = useState(detail.note.published);
-  const [visibility, setVisibility] = useState<"public" | "password" | "users">(initialVisibility);
+  const [visibility, setVisibility] = useState<"public" | "password" | "users" | "private">(detail.note.visibility);
   const [comments, setComments] = useState(detail.note.commentsEnabled);
   const [editing, setEditing] = useState(detail.note.editingEnabled);
   const [password, setPassword] = useState("");
@@ -81,8 +74,7 @@ export default function AdminSettingsPanel({
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setPublish(detail.note.published);
-    setVisibility(detail.note.visibility === "password" ? "password" : detail.note.visibility === "users" ? "users" : "public");
+    setVisibility(detail.note.visibility);
     setComments(detail.note.commentsEnabled);
     setEditing(detail.note.editingEnabled);
     setPassword("");
@@ -155,32 +147,13 @@ export default function AdminSettingsPanel({
       </div>
 
       <div className="admin-panel-body">
-        <ToggleRow label="Publish" description="Make this note accessible" checked={publish} onChange={setPublish} />
-
         <div className="settings-row settings-row-stack">
           <span>Visibility</span>
           <div className="segmented-tabs">
-            <button
-              type="button"
-              className={`segmented-tab ${visibility === "public" ? "active" : ""}`}
-              onClick={() => setVisibility("public")}
-            >
-              Public
-            </button>
-            <button
-              type="button"
-              className={`segmented-tab ${visibility === "password" ? "active" : ""}`}
-              onClick={() => setVisibility("password")}
-            >
-              Password
-            </button>
-            <button
-              type="button"
-              className={`segmented-tab ${visibility === "users" ? "active" : ""}`}
-              onClick={() => setVisibility("users")}
-            >
-              Users
-            </button>
+            <button type="button" className={`segmented-tab ${visibility === "private" ? "active" : ""}`} onClick={() => setVisibility("private")}>Private</button>
+            <button type="button" className={`segmented-tab ${visibility === "public" ? "active" : ""}`} onClick={() => setVisibility("public")}>Public</button>
+            <button type="button" className={`segmented-tab ${visibility === "password" ? "active" : ""}`} onClick={() => setVisibility("password")}>Password</button>
+            <button type="button" className={`segmented-tab ${visibility === "users" ? "active" : ""}`} onClick={() => setVisibility("users")}>Users</button>
           </div>
           {visibility === "password" ? (
             <label className="settings-password-field">
@@ -284,7 +257,6 @@ export default function AdminSettingsPanel({
             setSaving(true);
             try {
               await onSave({
-                publish,
                 visibility,
                 comments,
                 editing,

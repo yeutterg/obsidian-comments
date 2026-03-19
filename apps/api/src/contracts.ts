@@ -3,6 +3,7 @@ import type {
   CommentReplyRecord,
   NoteDetailResponse,
   NoteDisplayField,
+  NoteVisibility,
   NoteSummary,
 } from "@commonplace/shared";
 
@@ -16,15 +17,14 @@ export interface PublishedNote extends NoteSummary {
 }
 
 export interface NotesRepository {
-  listPublishedNotes(): Promise<NoteSummary[]>;
+  listPublicNotes(): Promise<NoteSummary[]>;
   listAllNotes(): Promise<NoteSummary[]>;
-  getPublishedNoteBySlug(slug: string): Promise<PublishedNote | null>;
+  getPublicNoteBySlug(slug: string): Promise<PublishedNote | null>;
   getAnyNoteBySlug(slug: string): Promise<PublishedNote | null>;
-  getNoteDetail(slug: string, authorized: boolean, includeUnpublished?: boolean): Promise<NoteDetailResponse | null>;
+  getNoteDetail(slug: string, authorized: boolean, includePrivate?: boolean): Promise<NoteDetailResponse | null>;
   updateNoteSettings(input: {
     slug: string;
-    publish: boolean;
-    visibility: "public" | "password";
+    visibility: NoteVisibility;
     comments: boolean;
     editing: boolean;
     passwordHash?: string;

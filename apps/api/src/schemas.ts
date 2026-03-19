@@ -8,8 +8,7 @@ export const authRequestSchema = z.object({
 
 export const adminNoteSettingsSchema = z.object({
   slug: z.string().min(1),
-  publish: z.boolean(),
-  visibility: z.enum(["public", "password", "users"]),
+  visibility: z.enum(["public", "password", "users", "private"]),
   comments: z.boolean(),
   editing: z.boolean(),
   password: z.string().optional(),

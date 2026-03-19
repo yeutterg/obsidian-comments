@@ -8,6 +8,7 @@ import type {
   NoteDisplayField,
   NoteFrontmatter,
   NoteSummary,
+  NoteVisibility,
 } from "@commonplace/shared";
 import type { NotesIndexStatus, NotesRepository, PublishedNote } from "./contracts.js";
 import { renderMarkdown } from "./markdown.js";
@@ -85,7 +86,7 @@ interface ParsedDataviewQuery {
 }
 
 const CONTROL_FRONTMATTER_KEYS = new Set([
-  "publish",
+  "publish", // legacy — converted to visibility
   "visibility",
   "comments",
   "password",
@@ -166,8 +167,15 @@ function hashContent(content: string) {
   return crypto.createHash("sha256").update(content).digest("hex");
 }
 
-function normalizeVisibility(value: NoteFrontmatter["visibility"]) {
-  return value === "password" ? "password" : "public";
+function normalizeVisibility(value: NoteFrontmatter["visibility"], legacyPublish?: unknown): NoteVisibility {
+  if (value === "public" || value === "password" || value === "users" || value === "private") {
+    return value;
+  }
+  // Legacy: if `publish: true` was set but no visibility field, treat as public
+  if (legacyPublish === true) {
+    return "public";
+  }
+  return "private";
 }
 
 function normalizePassword(value: NoteFrontmatter["password"]) {
@@ -184,7 +192,7 @@ function formatFieldLabel(key: string) {
 }
 
 function canExposeNote(note: CachedNote, adminMode: boolean) {
-  return adminMode || (note.published && note.visibility === "public");
+  return adminMode || note.visibility !== "private";
 }
 
 function normalizeFieldValue(
@@ -943,7 +951,6 @@ function toSummary(note: PublishedNote, commentCount = 0): NoteSummary {
     visibility: note.visibility,
     commentsEnabled: note.commentsEnabled,
     editingEnabled: note.editingEnabled,
-    published: note.published,
     commentCount,
   };
 }
@@ -953,7 +960,7 @@ function toBacklinkSummary(note: PublishedNote): BacklinkSummary {
     slug: note.slug,
     title: note.title,
     path: note.path,
-    published: note.published,
+    visibility: note.visibility,
   };
 }
 
@@ -981,10 +988,10 @@ export class FilesystemNotesIndex implements NotesRepository {
     return this.mount ? `${this.mount.label}: ${warning}` : warning;
   }
 
-  async listPublishedNotes(): Promise<NoteSummary[]> {
+  async listPublicNotes(): Promise<NoteSummary[]> {
     this.refreshIfStale();
     return [...this.cache.values()]
-      .filter((note) => note.published)
+      .filter((note) => note.visibility !== "private")
       .map((note) => toSummary(note))
       .sort((a, b) => a.path.localeCompare(b.path));
   }
@@ -996,10 +1003,10 @@ export class FilesystemNotesIndex implements NotesRepository {
       .sort((a, b) => a.path.localeCompare(b.path));
   }
 
-  async getPublishedNoteBySlug(slug: string): Promise<PublishedNote | null> {
+  async getPublicNoteBySlug(slug: string): Promise<PublishedNote | null> {
     this.refreshIfStale();
     const note = this.cache.get(slug);
-    return note?.published ? note : null;
+    return note && note.visibility !== "private" ? note : null;
   }
 
   async getAnyNoteBySlug(slug: string): Promise<PublishedNote | null> {
@@ -1010,23 +1017,23 @@ export class FilesystemNotesIndex implements NotesRepository {
   async getNoteDetail(
     slug: string,
     authorized: boolean,
-    includeUnpublished = false,
+    includePrivate = false,
   ): Promise<NoteDetailResponse | null> {
     this.refreshIfStale();
     const note = this.cache.get(slug);
-    if (!note || (!includeUnpublished && !note.published)) {
+    if (!note || (!includePrivate && note.visibility === "private")) {
       return null;
     }
 
-    const canRead = includeUnpublished || note.visibility === "public" || authorized;
+    const canRead = includePrivate || note.visibility === "public" || authorized;
     const backlinks = note.backlinks
       .map((backlinkSlug) => this.cache.get(backlinkSlug))
       .filter((candidate): candidate is CachedNote => candidate !== undefined)
-      .filter((candidate) => includeUnpublished || candidate.published)
+      .filter((candidate) => includePrivate || candidate.visibility !== "private")
       .map(toBacklinkSummary);
     const notesByBasename = buildNotesByBasename(this.cache);
     const presentation = extractPresentation(note.frontmatter as NoteFrontmatter, {
-      adminMode: includeUnpublished,
+      adminMode: includePrivate,
       sourceNote: note,
       notesBySlug: this.cache,
       notesByBasename,
@@ -1036,7 +1043,7 @@ export class FilesystemNotesIndex implements NotesRepository {
       note: toSummary(note),
       authorized: canRead,
       html: canRead ? await this.renderNoteHtml(note, {
-        adminMode: includeUnpublished,
+        adminMode: includePrivate,
         notesByBasename,
         visited: new Set([note.slug]),
       }) : null,
@@ -1050,8 +1057,7 @@ export class FilesystemNotesIndex implements NotesRepository {
 
   async updateNoteSettings(input: {
     slug: string;
-    publish: boolean;
-    visibility: "public" | "password" | "users";
+    visibility: "public" | "password" | "users" | "private";
     comments: boolean;
     editing: boolean;
     passwordHash?: string;
@@ -1065,7 +1071,7 @@ export class FilesystemNotesIndex implements NotesRepository {
     const raw = fs.readFileSync(note.absolutePath, "utf8");
     const parsed = matter(raw);
     const nextData = { ...(parsed.data as Record<string, unknown>) };
-    nextData.publish = input.publish;
+    delete nextData.publish; // remove legacy field
     nextData.visibility = input.visibility;
     nextData.comments = input.comments;
     nextData.editing = input.editing;
@@ -1143,10 +1149,10 @@ export class FilesystemNotesIndex implements NotesRepository {
     };
   }
 
-  resolveAssetReference(sourceSlug: string, reference: string, includeUnpublished = false) {
+  resolveAssetReference(sourceSlug: string, reference: string, includePrivate = false) {
     this.refreshIfStale();
     const note = this.cache.get(sourceSlug);
-    if (!note || (!includeUnpublished && !note.published)) {
+    if (!note || (!includePrivate && note.visibility === "private")) {
       return null;
     }
 
@@ -1577,7 +1583,7 @@ export class FilesystemNotesIndex implements NotesRepository {
   }
 
   private getDataviewCandidateNotes(from: string | null, adminMode: boolean) {
-    const allNotes = [...this.cache.values()].filter((note) => adminMode || (note.published && note.visibility === "public"));
+    const allNotes = [...this.cache.values()].filter((note) => adminMode || (note.visibility !== "private"));
     if (!from) {
       return allNotes;
     }
@@ -1746,7 +1752,7 @@ export class FilesystemNotesIndex implements NotesRepository {
     }
 
     let tasks = [...this.cache.values()]
-      .filter((note) => adminMode || (note.published && note.visibility === "public"))
+      .filter((note) => adminMode || (note.visibility !== "private"))
       .sort((left, right) => left.path.localeCompare(right.path))
       .flatMap((note) => note.tasks.map((task) => ({ note, task })));
 
@@ -1883,7 +1889,7 @@ export class FilesystemNotesIndex implements NotesRepository {
       : Object.keys(properties);
     const columns = order.length > 0 ? order : ["file.name"];
 
-    let rows = [...this.cache.values()].filter((note) => adminMode || (note.published && note.visibility === "public"));
+    let rows = [...this.cache.values()].filter((note) => adminMode || (note.visibility !== "private"));
     rows = rows.filter((rowNote) => this.evaluateBaseFilters(selectedView.filters, {
       adminMode,
       sourceNote,
@@ -2471,10 +2477,9 @@ export class FilesystemNotesIndex implements NotesRepository {
           slug,
           title,
           path: mountedPath,
-          visibility: normalizeVisibility(parsedFrontmatter.visibility),
+          visibility: normalizeVisibility(parsedFrontmatter.visibility, parsedFrontmatter.publish),
           commentsEnabled: parsedFrontmatter.comments !== false,
           editingEnabled: parsedFrontmatter.editing === true,
-          published: parsedFrontmatter.publish === true,
           commentCount: 0,
           passwordHash: normalizePassword(parsedFrontmatter.password),
           content,
@@ -2599,8 +2604,8 @@ export class MultiVaultNotesIndex implements NotesRepository {
     return this.repositories.find((repository) => slug === repository.id || slug.startsWith(`${repository.id}/`))?.index ?? null;
   }
 
-  async listPublishedNotes(): Promise<NoteSummary[]> {
-    const results = await Promise.all(this.repositories.map((repository) => repository.index.listPublishedNotes()));
+  async listPublicNotes(): Promise<NoteSummary[]> {
+    const results = await Promise.all(this.repositories.map((repository) => repository.index.listPublicNotes()));
     return results.flat().sort((a, b) => a.path.localeCompare(b.path));
   }
 
@@ -2609,9 +2614,9 @@ export class MultiVaultNotesIndex implements NotesRepository {
     return results.flat().sort((a, b) => a.path.localeCompare(b.path));
   }
 
-  async getPublishedNoteBySlug(slug: string): Promise<PublishedNote | null> {
+  async getPublicNoteBySlug(slug: string): Promise<PublishedNote | null> {
     const repository = this.resolveRepository(slug);
-    return repository ? repository.getPublishedNoteBySlug(slug) : null;
+    return repository ? repository.getPublicNoteBySlug(slug) : null;
   }
 
   async getAnyNoteBySlug(slug: string): Promise<PublishedNote | null> {
@@ -2619,15 +2624,14 @@ export class MultiVaultNotesIndex implements NotesRepository {
     return repository ? repository.getAnyNoteBySlug(slug) : null;
   }
 
-  async getNoteDetail(slug: string, authorized: boolean, includeUnpublished = false): Promise<NoteDetailResponse | null> {
+  async getNoteDetail(slug: string, authorized: boolean, includePrivate = false): Promise<NoteDetailResponse | null> {
     const repository = this.resolveRepository(slug);
-    return repository ? repository.getNoteDetail(slug, authorized, includeUnpublished) : null;
+    return repository ? repository.getNoteDetail(slug, authorized, includePrivate) : null;
   }
 
   async updateNoteSettings(input: {
     slug: string;
-    publish: boolean;
-    visibility: "public" | "password" | "users";
+    visibility: "public" | "password" | "users" | "private";
     comments: boolean;
     editing: boolean;
     passwordHash?: string;
@@ -2668,8 +2672,8 @@ export class MultiVaultNotesIndex implements NotesRepository {
     };
   }
 
-  resolveAssetReference(sourceSlug: string, reference: string, includeUnpublished = false) {
+  resolveAssetReference(sourceSlug: string, reference: string, includePrivate = false) {
     const repository = this.resolveRepository(sourceSlug);
-    return repository ? repository.resolveAssetReference(sourceSlug, reference, includeUnpublished) : null;
+    return repository ? repository.resolveAssetReference(sourceSlug, reference, includePrivate) : null;
   }
 }

@@ -25,13 +25,13 @@ Hello world
   const registry = new NoteRegistry(sqlitePath);
   const index = new FilesystemNotesIndex(tempDir, registry);
 
-  const first = await index.getPublishedNoteBySlug("first");
+  const first = await index.getPublicNoteBySlug("first");
   assert.ok(first);
 
   const renamed = path.join(tempDir, "renamed.md");
   fs.renameSync(noteOne, renamed);
 
-  const second = await index.getPublishedNoteBySlug("renamed");
+  const second = await index.getPublicNoteBySlug("renamed");
   assert.ok(second);
   assert.equal(second?.id, first?.id);
   assert.equal(second?.path, "renamed.md");
@@ -63,7 +63,7 @@ Hello world
   const registry = new NoteRegistry(sqlitePath);
   const index = new FilesystemNotesIndex(tempDir, registry);
 
-  const note = await index.getPublishedNoteBySlug("customized");
+  const note = await index.getPublicNoteBySlug("customized");
   assert.ok(note);
   assert.equal(note?.slug, "customized");
   assert.equal(note?.title, "customized");
@@ -73,7 +73,7 @@ Hello world
   assert.equal(note?.editingEnabled, true);
   assert.equal(note?.passwordHash, "stored-password-hash");
 
-  const ignoredSlug = await index.getPublishedNoteBySlug("ignored-slug");
+  const ignoredSlug = await index.getPublicNoteBySlug("ignored-slug");
   assert.equal(ignoredSlug, null);
 });
 
@@ -96,7 +96,7 @@ Hello world
   const registry = new NoteRegistry(sqlitePath);
   const index = new FilesystemNotesIndex(tempDir, registry);
 
-  const note = await index.getPublishedNoteBySlug("plain");
+  const note = await index.getPublicNoteBySlug("plain");
   assert.ok(note);
   assert.equal(note?.visibility, "public");
   assert.equal(note?.commentsEnabled, true);
@@ -113,7 +113,7 @@ test("FilesystemNotesIndex reports a missing vault without throwing", async () =
   const registry = new NoteRegistry(sqlitePath);
   const index = new FilesystemNotesIndex(missingVaultDir, registry);
 
-  const notes = await index.listPublishedNotes();
+  const notes = await index.listPublicNotes();
 
   assert.deepEqual(notes, []);
   assert.match(index.getStatus().lastError ?? "", /Vault directory does not exist/);
