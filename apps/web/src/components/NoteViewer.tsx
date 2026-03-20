@@ -8,6 +8,7 @@ import CommentForm from "./CommentForm";
 import { getClientApiBaseUrl } from "@/lib/api-base";
 import { CopyIcon, MessageSquareIcon, PencilIcon } from "./Icons";
 import { getNoteHref } from "@/lib/directory-tree";
+import { useTableOfContents, TableOfContentsSidebar, TableOfContentsMobile } from "./TableOfContents";
 
 interface Props {
   detail: NoteDetailResponse;
@@ -457,6 +458,9 @@ export default function NoteViewer({
     };
   }, [adminMode, comments, directEditMode, isMobile, onCommentsOpenChange, selection]);
 
+  const headings = useTableOfContents(detail.html);
+  const [frontmatterOpen, setFrontmatterOpen] = useState(false);
+
   const highlightedHtml = useMemo(
     () => applyCommentHighlights(detail.html ?? "", comments, false, activeCommentId, selection),
     [activeCommentId, comments, detail.html, selection],
@@ -608,37 +612,53 @@ export default function NoteViewer({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [detail.markdown, directEditMode, handleSaveMarkdown, isSavingMarkdown, onDirectEditModeChange]);
 
+  const frontmatterContent = detail.frontmatterFields.length > 0 ? (
+    detail.frontmatterFields.map((field) => (
+      <div key={field.key} className="frontmatter-row">
+        <span className="frontmatter-label">{field.label}</span>
+        {Array.isArray(field.value) ? (
+          <span className="frontmatter-tags">
+            {field.value.map((tag) => <span key={tag} className="tag-pill">{tag}</span>)}
+          </span>
+        ) : field.href ? (
+          <a
+            className="frontmatter-value frontmatter-link"
+            href={field.href}
+            target={shouldOpenInNewTab(field.href) ? "_blank" : undefined}
+            rel={shouldOpenInNewTab(field.href) ? "noopener noreferrer" : undefined}
+          >
+            {formatFieldValue(field)}
+          </a>
+        ) : (
+          <span className="frontmatter-value">{formatFieldValue(field)}</span>
+        )}
+      </div>
+    ))
+  ) : null;
+
   return (
     <div ref={viewerRef} className="note-viewer-shell">
+      {!isMobile && headings.length >= 2 ? (
+        <TableOfContentsSidebar headings={headings} contentRef={contentRef} />
+      ) : null}
       <div className="note-reader">
         <div className="note-reader-inner" style={{ fontSize: `${fontScale}rem` }}>
           <article className="note-article">
             <header className="note-article-header">
               <h1>{detail.note.title}</h1>
-              {detail.frontmatterFields.length > 0 ? (
-                <div className="frontmatter-block">
-                  {detail.frontmatterFields.map((field) => (
-                    <div key={field.key} className="frontmatter-row">
-                      <span className="frontmatter-label">{field.label}</span>
-                      {Array.isArray(field.value) ? (
-                        <span className="frontmatter-tags">
-                          {field.value.map((tag) => <span key={tag} className="tag-pill">{tag}</span>)}
-                        </span>
-                      ) : field.href ? (
-                        <a
-                          className="frontmatter-value frontmatter-link"
-                          href={field.href}
-                          target={shouldOpenInNewTab(field.href) ? "_blank" : undefined}
-                          rel={shouldOpenInNewTab(field.href) ? "noopener noreferrer" : undefined}
-                        >
-                          {formatFieldValue(field)}
-                        </a>
-                      ) : (
-                        <span className="frontmatter-value">{formatFieldValue(field)}</span>
-                      )}
-                    </div>
-                  ))}
+              {isMobile && frontmatterContent ? (
+                <div className="frontmatter-collapsible">
+                  <button type="button" className="frontmatter-toggle" onClick={() => setFrontmatterOpen(!frontmatterOpen)}>
+                    <span className="frontmatter-toggle-label">Details</span>
+                    {frontmatterOpen ? <span className="frontmatter-toggle-icon">&#x25BE;</span> : <span className="frontmatter-toggle-icon">&#x25B8;</span>}
+                  </button>
+                  {frontmatterOpen ? <div className="frontmatter-block">{frontmatterContent}</div> : null}
                 </div>
+              ) : frontmatterContent ? (
+                <div className="frontmatter-block">{frontmatterContent}</div>
+              ) : null}
+              {isMobile && headings.length >= 2 ? (
+                <TableOfContentsMobile headings={headings} contentRef={contentRef} />
               ) : null}
               {detail.subtitle ? <p className="note-subtitle">{detail.subtitle}</p> : null}
               <div className="note-divider" />

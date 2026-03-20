@@ -1058,6 +1058,144 @@ textarea {
   min-width: 0;
 }
 
+.toc-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  padding: 24px 0 24px 48px;
+  position: sticky;
+  top: 52px;
+  height: fit-content;
+  max-height: calc(100vh - 52px);
+  overflow-y: auto;
+}
+
+.toc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 0 12px;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+
+.toc-label {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.toc-list {
+  display: flex;
+  flex-direction: column;
+  border-left: 1.5px solid var(--border-subtle);
+}
+
+.toc-item {
+  display: block;
+  padding: 6px 0 6px 14px;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: color 0.12s ease;
+}
+
+.toc-item:hover {
+  color: var(--text-primary);
+}
+
+.toc-item-nested {
+  padding-left: 28px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.toc-item-active {
+  color: var(--accent);
+  font-weight: 500;
+  border-left: 1.5px solid var(--accent);
+  margin-left: -1.5px;
+}
+
+.toc-mobile {
+  margin-top: 8px;
+  padding: 14px 16px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+}
+
+.toc-mobile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-secondary);
+}
+
+.toc-mobile-list {
+  display: flex;
+  flex-direction: column;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.toc-mobile-list .toc-item {
+  padding: 5px 0;
+}
+
+.toc-mobile-list .toc-item-nested {
+  padding-left: 14px;
+}
+
+.frontmatter-collapsible {
+  margin-top: 16px;
+  padding: 14px 16px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+}
+
+.frontmatter-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 0;
+  color: var(--text-secondary);
+}
+
+.frontmatter-toggle-label {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.frontmatter-toggle-icon {
+  font-size: 14px;
+}
+
+.frontmatter-collapsible .frontmatter-block {
+  margin-top: 10px;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+
 .note-reader {
   flex: 1;
   min-width: 0;
